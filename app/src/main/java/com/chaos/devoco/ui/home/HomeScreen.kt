@@ -20,7 +20,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.navigation.NavHostController
-import com.chaos.devoco.domain.model.PdfDocument
 import com.chaos.devoco.ui.component.home.DocumentCard
 
 
@@ -47,6 +46,7 @@ fun HomeScreen(
         uri?.let { viewModel.onPdfSelected(it) }
     }
 
+    // Handle Snackbars
     LaunchedEffect(uiState.deleteSuccess) {
         uiState.deleteSuccess?.let {
             snackbarHostState.showSnackbar(
@@ -55,6 +55,16 @@ fun HomeScreen(
                 duration = SnackbarDuration.Short
             )
             viewModel.clearDeleteSuccess()
+        }
+    }
+
+    LaunchedEffect(uiState.importSuccess) {
+        uiState.importSuccess?.let {
+            snackbarHostState.showSnackbar(
+                message = it,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.clearImportSuccess()
         }
     }
 
@@ -68,7 +78,9 @@ fun HomeScreen(
             viewModel.clearError()
         }
     }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar ={
             TopAppBar(
                 title = {
@@ -85,10 +97,10 @@ fun HomeScreen(
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = {pdfPickerLauncher.launch("application/pdf")},
+                onClick = { pdfPickerLauncher.launch("application/pdf") },
                 icon = { Icon(Icons.Default.Add, "Add PDF") },
-                text = {Text("Add PDF")},
-                containerColor= MaterialTheme.colorScheme.primary
+                text = { Text("Add PDF") },
+                containerColor = MaterialTheme.colorScheme.primary
             )
         }
     ) { paddingValues ->
@@ -97,8 +109,8 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ){
-            when{
-                uiState.isLoading->{
+            when {
+                uiState.isLoading -> {
                     Column(
                         modifier = Modifier.fillMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -113,7 +125,7 @@ fun HomeScreen(
                     }
                 }
 
-                uiState.error != null ->{
+                uiState.error != null -> {
                     Column(
                         modifier = Modifier.fillMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -122,23 +134,25 @@ fun HomeScreen(
                         Icon(
                             Icons.Default.Error,
                             contentDescription = "Error",
-                            modifier= Modifier.size(64.dp),
-                            tint= MaterialTheme.colorScheme.error
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.error
                         )
-                        Spacer(modifier= Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = uiState.error ?: "Unknown error",
                             style = MaterialTheme.typography.bodyLarge,
-                            color= MaterialTheme.colorScheme.error,
-                            textAlign = TextAlign.Center
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 32.dp)
                         )
-                        Spacer(modifier= Modifier.height(16.dp))
-                        OutlinedButton(onClick={}){
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedButton(onClick = { viewModel.retryLastImport() }) {
                             Text("Retry")
                         }
                     }
                 }
-                uiState.documents.isEmpty() && !uiState.isLoading -> {
+
+                uiState.documents.isEmpty() -> {
                     Column(
                         modifier = Modifier.fillMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -147,20 +161,20 @@ fun HomeScreen(
                         Icon(
                             Icons.Default.PictureAsPdf,
                             contentDescription = "Add PDF",
-                            modifier= Modifier.size(100.dp),
-                            tint= MaterialTheme.colorScheme.primary.copy(alpha = 0.06f)
+                            modifier = Modifier.size(100.dp),
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.06f)
                         )
-                        Spacer(modifier= Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(24.dp))
                         Text(
                             text =  "No PDFs yet",
                             style = MaterialTheme.typography.headlineMedium,
-                            color= MaterialTheme.colorScheme.onSurface,
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
-                        Spacer(modifier= Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "Tap 'Add PDF' or share from \n another app to get started",
+                            "Tap 'Add PDF' or share from \nanother app to get started",
                             style = MaterialTheme.typography.bodyLarge,
-                            color= MaterialTheme.colorScheme.onSurface.copy(alpha =0.6f),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                             textAlign = TextAlign.Center
                         )
                     }
@@ -168,18 +182,18 @@ fun HomeScreen(
 
                 else -> {
                     LazyColumn(
-                        modifier= Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ){
                         items(
                             items = uiState.documents,
-                            key={ it.id }
+                            key = { it.id }
                         ){ document ->
                             DocumentCard(
-                                document= document,
+                                document = document,
                                 navController = navController,
-                                onDelete = {viewModel.deleteDocument(it)}
+                                onDelete = { viewModel.deleteDocument(it) }
                             )
                         }
                     }
@@ -188,11 +202,3 @@ fun HomeScreen(
         }
     }
 }
-
-//@Composable
-//private fun DocumentCard(
-//    document: PdfDocument,
-//    navController: NavHostController
-//) {
-//
-//}

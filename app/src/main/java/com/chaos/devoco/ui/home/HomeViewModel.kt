@@ -10,7 +10,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.fold
 
 data class HomeUiState(
     val documents: List<PdfDocument> = emptyList(),
@@ -30,7 +29,7 @@ class HomeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    private var proccessedUri: Uri? = null
+    private var processedUri: Uri? = null
 
     init{
         loadDocuments()
@@ -41,8 +40,7 @@ class HomeViewModel @Inject constructor(
             pdfRepository.getAllDocuments().collect { documents ->
                 _uiState.update { it.copy(
                     documents = documents,
-                    isLoading = false,
-                    deleteSuccess = null
+                    isLoading = false
                 ) }
             }
         }
@@ -50,16 +48,15 @@ class HomeViewModel @Inject constructor(
 
     fun onPdfSelected(uri: Uri){
         // Avoid processing the same URI multiple times
-        if (uri == proccessedUri) return
-        proccessedUri = uri
+        if (uri == processedUri && _uiState.value.isLoading) return
+        processedUri = uri
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading= true, error= null) }
+            _uiState.update { it.copy(isLoading = true, error = null) }
 
             extractPdfUseCase(uri).fold(
                 onSuccess = {
                     val fileName = extractPdfUseCase.getFileName(uri)
-                    //Document saved successfully - Flow will auto update
                     _uiState.update { it.copy(
                         isLoading = false,
                         importSuccess = "$fileName imported successfully"
@@ -75,6 +72,10 @@ class HomeViewModel @Inject constructor(
                 }
             )
         }
+    }
+
+    fun retryLastImport() {
+        processedUri?.let { onPdfSelected(it) }
     }
 
     fun deleteDocument(document: PdfDocument){

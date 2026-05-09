@@ -5,6 +5,8 @@ import android.net.Uri
 import com.chaos.devoco.data.repository.PdfRepository
 import com.chaos.devoco.util.PdfExtractor
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 class ExtractPdfUseCase @Inject constructor(
@@ -12,29 +14,29 @@ class ExtractPdfUseCase @Inject constructor(
     private val pdfRepository: PdfRepository,
     private val pdfExtractor: PdfExtractor
 ){
-    suspend operator fun invoke(uri: Uri) : Result<Unit>{
-        return try {
+    suspend operator fun invoke(uri: Uri) : Result<Unit> = withContext(Dispatchers.IO) {
+        return@withContext try {
             val extractionResult = pdfExtractor.extractText(uri)
 
             if (extractionResult.text.isEmpty()){
-                return Result.failure(
+                Result.failure(
                     IllegalStateException("PDF contains no text.")
                 )
+            } else {
+                pdfRepository.saveDocument(
+                    uri = uri,
+                    fileName = pdfExtractor.getFileName(uri),
+                    extractedText = extractionResult.text,
+                    pageCount = extractionResult.pageCount
+                )
+                Result.success(Unit)
             }
-
-            pdfRepository.saveDocument(
-                uri = uri,
-                fileName = pdfExtractor.getFileName(uri),
-                extractedText = extractionResult.text,
-                pageCount = extractionResult.pageCount
-            )
-            Result.success(Unit)
         } catch (e: Exception){
             Result.failure(e)
         }
     }
 
-    fun getFileName(uri: Uri) : String {
+    suspend fun getFileName(uri: Uri) : String {
         return pdfExtractor.getFileName(uri)
     }
 }
