@@ -16,11 +16,8 @@ import com.chaos.devoco.ui.quiz.QuizScreen
 import com.chaos.devoco.ui.theory.TheoryScreen
 
 sealed class Screen(val route: String){
-    object Home: Screen("home?sharedUri={sharedUri}"){
-        fun createRoute(sharedUri: String? = null) = "home${sharedUri?.let { 
-            "?sharedUri=${Uri.encode(it)}"
-        } ?: ""}"
-    }
+    object Home: Screen("home")
+    
     object Objective : Screen("objective/{documentId}"){
         fun createRoute(docId: String) = "objective/$docId"
     }
@@ -41,29 +38,36 @@ fun NavGraph(
 ){
     val context = LocalContext.current
     val activity = context as? MainActivity
-    val uriToPass = sharedPdfUri?.toString() ?: activity?.consumeSharedUri()?.toString()
+
+    // If a PDF is shared while on another screen, navigate back to Home to process it
+    LaunchedEffect(sharedPdfUri) {
+        if (sharedPdfUri != null) {
+            val currentRoute = navController.currentBackStackEntry?.destination?.route
+            if (currentRoute != Screen.Home.route) {
+                navController.navigate(Screen.Home.route) {
+                    popUpTo(Screen.Home.route) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
+        }
+    }
 
     NavHost(
         navController = navController,
-        startDestination = Screen.Home.createRoute(uriToPass)
+        startDestination = Screen.Home.route
     ){
-        composable(
-            route = Screen.Home.route,
-            arguments = listOf(
-                navArgument("sharedUri") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                }
-            )
-        ){ backStackEntry ->
-            val sharedUriString = backStackEntry.arguments?.getString("sharedUri")
-            val uri = sharedUriString?.let { Uri.parse(it) }
-
+        composable(route = Screen.Home.route){
             HomeScreen(
                 navController = navController,
-                sharedPdfUri = uri
+                sharedPdfUri = sharedPdfUri
             )
+            
+            // Consume the URI once it has been passed to HomeScreen to prevent re-processing
+            LaunchedEffect(sharedPdfUri) {
+                if (sharedPdfUri != null) {
+                    activity?.consumeSharedUri()
+                }
+            }
         }
 
         composable(
