@@ -39,16 +39,20 @@ fun NavGraph(
     val context = LocalContext.current
     val activity = context as? MainActivity
 
-    // If a PDF is shared while on another screen, navigate back to Home to process it
+    // Consolidated handling for shared PDF URI
     LaunchedEffect(sharedPdfUri) {
         if (sharedPdfUri != null) {
-            val currentRoute = navController.currentBackStackEntry?.destination?.route
-            if (currentRoute != Screen.Home.route) {
+            // 1. If we are not on Home, navigate there to show the importing UI
+            if (navController.currentDestination?.route != Screen.Home.route) {
                 navController.navigate(Screen.Home.route) {
                     popUpTo(Screen.Home.route) { inclusive = false }
                     launchSingleTop = true
                 }
             }
+            // 2. Immediately consume the URI in MainActivity.
+            // Even if HomeScreen recomposes with null, its internal LaunchedEffect 
+            // will have already triggered the ViewModel processing.
+            activity?.consumeSharedUri()
         }
     }
 
@@ -61,13 +65,6 @@ fun NavGraph(
                 navController = navController,
                 sharedPdfUri = sharedPdfUri
             )
-            
-            // Consume the URI once it has been passed to HomeScreen to prevent re-processing
-            LaunchedEffect(sharedPdfUri) {
-                if (sharedPdfUri != null) {
-                    activity?.consumeSharedUri()
-                }
-            }
         }
 
         composable(

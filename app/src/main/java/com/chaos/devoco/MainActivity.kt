@@ -10,28 +10,39 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
+import com.chaos.devoco.data.local.datastore.UserPreferences
 import com.chaos.devoco.ui.navigation.NavGraph
 import com.chaos.devoco.ui.theme.DevocoTheme
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    
+    @Inject
+    lateinit var userPreferences: UserPreferences
+
     private var sharedPdfUri by mutableStateOf<Uri?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Check if app was opened with a PDF
-        handleIncomingIntent(intent)
+        // Only handle intent if this is a fresh start, not a configuration change
+        if (savedInstanceState == null) {
+            handleIncomingIntent(intent)
+        }
         
         enableEdgeToEdge()
         setContent {
-            DevocoTheme {
+//            val isDarkMode by userPreferences.isDarkMode.collectAsState(initial = false)
+            
+            DevocoTheme() {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -48,13 +59,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        // Important: Update the intent so that it can be correctly handled
         setIntent(intent)
         handleIncomingIntent(intent)
     }
 
     private fun handleIncomingIntent(intent: Intent) {
-        val action = intent.action
+        val action = intent.action ?: return
         val type = intent.type ?: intent.resolveType(this)
 
         if (type == "application/pdf" || type?.startsWith("application/pdf") == true) {
@@ -68,20 +78,23 @@ class MainActivity : ComponentActivity() {
                     }
                     if (uri != null) {
                         sharedPdfUri = uri
+                        // Clear the intent action/extra so it doesn't trigger again on recreation
+                        intent.action = null
+                        intent.removeExtra(Intent.EXTRA_STREAM)
                     }
                 }
                 Intent.ACTION_VIEW -> {
                     intent.data?.let {
                         sharedPdfUri = it
+                        // Clear the intent action/data so it doesn't trigger again on recreation
+                        intent.action = null
+                        intent.data = null
                     }
                 }
             }
         }
     }
 
-    /**
-     * Consumes the shared URI so it's not processed multiple times.
-     */
     fun consumeSharedUri(): Uri? {
         val uri = sharedPdfUri
         sharedPdfUri = null
